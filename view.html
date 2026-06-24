@@ -271,11 +271,29 @@ function showGroup(newIdx) {
     startAnim();
 }
 
+// Restore viewBox for SVGs exported with --no-frame.
+// --center adds matrix(1,0,0,1,cx,cy) where cx=w/2, cy=h/2,
+// so the original stage was cx*2 × cy*2.
+function fixNoFrame(svg) {
+    if (svg.hasAttribute('viewBox')) return;
+    const g = svg.querySelector(':scope > g[transform]');
+    if (!g) return;
+    const m = g.getAttribute('transform')
+        .match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*([\d.]+),\s*([\d.]+)\)/);
+    if (!m) return;
+    const cx = parseFloat(m[1]);
+    const cy = parseFloat(m[2]);
+    if (cx > 0 && cy > 0) {
+        svg.setAttribute('viewBox', `0 0 ${cx * 2} ${cy * 2}`);
+    }
+}
+
 function renderFrame() {
     const g = groups[idx];
     svgWrap.innerHTML = g.frames[frameIdx];
     const svg = svgWrap.querySelector('svg');
     if (svg) {
+        fixNoFrame(svg);
         svg.style.maxWidth  = '100%';
         svg.style.maxHeight = '100%';
         svg.style.display   = 'block';
