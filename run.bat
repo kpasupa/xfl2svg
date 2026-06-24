@@ -9,7 +9,7 @@ set "OUTPUT=%BAT_DIR%output"
 :: DEFAULT VALUES — set value to skip prompt, leave "" to ask
 :: ============================================================
 :: Input folder (folder that contains LIBRARY)
-set "XFL_DEFAULT=%BAT_DIR%"
+set "XFL_DEFAULT=%BAT_DIR%xfl"
 :: Remove background: y / n
 set "DEFAULT_NO_BG=y"
 :: Center content in viewport: y / n

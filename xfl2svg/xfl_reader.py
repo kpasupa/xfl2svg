@@ -164,11 +164,20 @@ class _UnzippedXflReader(CloseOnExit):
     """Read from an unzipped XFL project."""
 
     def __init__(self, root_path):
-        # If the user points directly at the LIBRARY folder, step up to the parent
-        if os.path.basename(os.path.normpath(root_path)).upper() == "LIBRARY":
-            root_path = os.path.dirname(os.path.normpath(root_path))
+        root_path = os.path.normpath(root_path)
+        # If path is named LIBRARY, step up to parent
+        if os.path.basename(root_path).upper() == "LIBRARY":
+            root_path = os.path.dirname(root_path)
+        # If path has no LIBRARY subfolder but contains .xml files directly,
+        # treat the path itself as the LIBRARY
+        library_path = os.path.join(root_path, "LIBRARY")
+        if not os.path.isdir(library_path):
+            xml_files = [f for f in os.listdir(root_path) if f.endswith(".xml")]
+            if xml_files:
+                library_path = root_path
+                root_path = os.path.dirname(root_path)
         self.root_path = root_path
-        self.library_path = os.path.join(root_path, "LIBRARY")
+        self.library_path = library_path
 
     def get_dom_document(self):
         dom_path = os.path.join(self.root_path, "DOMDocument.xml")
