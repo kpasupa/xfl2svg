@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>XFL SVG Viewer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #111;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* ── Welcome ─────────────────────────────────────── */
+#welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 14px;
+}
+#welcome h1 { font-size: 22px; color: #777; font-weight: 400; }
+#open-btn {
+    padding: 11px 36px;
+    background: #3a7bd5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#open-btn:hover { background: #2e6ac4; }
+
+/* ── App layout ──────────────────────────────────── */
+#app { display: none; flex-direction: column; height: 100vh; }
+
+/* ── Stage ───────────────────────────────────────── */
+#stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #1c1c1c;
+    /* checkerboard so transparent SVGs are visible */
+    background-image:
+        linear-gradient(45deg, #282828 25%, transparent 25%),
+        linear-gradient(-45deg, #282828 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #282828 75%),
+        linear-gradient(-45deg, transparent 75%, #282828 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    position: relative;
+}
+
+#svg-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 12px 64px;
+}
+#svg-wrap svg {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+}
+
+/* Nav arrows */
+.nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #ccc;
+    font-size: 26px;
+    width: 44px;
+    height: 72px;
+    cursor: pointer;
+    border-radius: 6px;
+    line-height: 1;
+    transition: background 0.1s;
+    z-index: 10;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+#prev-btn { left: 10px; }
+#next-btn { right: 10px; }
+
+/* ── Bottom bar ──────────────────────────────────── */
+#bar {
+    background: #161616;
+    border-top: 1px solid #2a2a2a;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: 50px;
+    flex-shrink: 0;
+}
+
+#info-name {
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #ddd;
+}
+
+.tag {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+
+.sep { width: 1px; height: 22px; background: #2a2a2a; flex-shrink: 0; }
+
+.setting {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #888;
+    white-space: nowrap;
+}
+.setting label { cursor: pointer; }
+.setting input[type=number] {
+    width: 50px;
+    background: #222;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #eee;
+    padding: 3px 6px;
+    font-size: 13px;
+    text-align: center;
+}
+.setting input[type=checkbox] {
+    width: 15px; height: 15px; cursor: pointer; accent-color: #3a7bd5;
+}
+
+#hint { font-size: 11px; color: #444; white-space: nowrap; }
+
+/* ── Pause overlay ───────────────────────────────── */
+#pause-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(0,0,0,0.55);
+    color: #aaa;
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    display: none;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div id="welcome">
+    <h1>XFL SVG Viewer</h1>
+    <button id="open-btn">Choose SVG Folder</button>
+</div>
+
+<div id="app">
+    <div id="stage">
+        <button class="nav-btn" id="prev-btn">&#8249;</button>
+        <div id="svg-wrap"></div>
+        <button class="nav-btn" id="next-btn">&#8250;</button>
+        <div id="pause-badge">PAUSED</div>
+    </div>
+
+    <div id="bar">
+        <span id="info-name">—</span>
+        <span class="tag" id="tag-frame">Static</span>
+        <span class="tag" id="tag-counter">0 / 0</span>
+        <div class="sep"></div>
+        <div class="setting">
+            FPS
+            <input type="number" id="fps-input" value="12" min="1" max="60">
+        </div>
+        <div class="setting">
+            <input type="checkbox" id="loop-chk" checked>
+            <label for="loop-chk">Loop</label>
+        </div>
+        <div class="sep"></div>
+        <span id="hint">← → navigate &nbsp;·&nbsp; Space pause</span>
+    </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────
+let groups   = [];   // [{ name, frames: [svgText, …] }]
+let idx      = 0;    // current group index
+let frameIdx = 0;    // current frame within group
+let timer    = null;
+let paused   = false;
+
+// ── Elements ──────────────────────────────────────────
+const welcome    = document.getElementById('welcome');
+const app        = document.getElementById('app');
+const svgWrap    = document.getElementById('svg-wrap');
+const infoName   = document.getElementById('info-name');
+const tagFrame   = document.getElementById('tag-frame');
+const tagCounter = document.getElementById('tag-counter');
+const fpsInput   = document.getElementById('fps-input');
+const loopChk    = document.getElementById('loop-chk');
+const pauseBadge = document.getElementById('pause-badge');
+
+// ── Open folder ───────────────────────────────────────
+document.getElementById('open-btn').addEventListener('click', async () => {
+    let dirHandle;
+    try { dirHandle = await window.showDirectoryPicker(); }
+    catch { return; } // cancelled
+
+    // Collect SVG entries
+    const entries = [];
+    for await (const entry of dirHandle.values()) {
+        if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.svg'))
+            entries.push(entry);
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    // Group by symbol name (strip _NNN suffix)
+    const map = new Map();
+    for (const entry of entries) {
+        const m = entry.name.match(/^(.+)_(\d+)\.svg$/i);
+        const key = m ? m[1] : entry.name.replace(/\.svg$/i, '');
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(entry);
+    }
+
+    // Load SVG text for every frame up-front
+    groups = [];
+    for (const [name, files] of map) {
+        const frames = await Promise.all(
+            files.map(async e => { const f = await e.getFile(); return f.text(); })
+        );
+        groups.push({ name, frames });
+    }
+
+    if (!groups.length) { alert('No SVG files found.'); return; }
+
+    welcome.style.display = 'none';
+    app.style.display = 'flex';
+    showGroup(0);
+});
+
+// ── Show group ────────────────────────────────────────
+function showGroup(newIdx) {
+    stopAnim();
+    idx      = ((newIdx % groups.length) + groups.length) % groups.length;
+    frameIdx = 0;
+    paused   = false;
+    pauseBadge.style.display = 'none';
+    renderFrame();
+    startAnim();
+}
+
+function renderFrame() {
+    const g = groups[idx];
+    svgWrap.innerHTML = g.frames[frameIdx];
+    const svg = svgWrap.querySelector('svg');
+    if (svg) {
+        svg.style.maxWidth  = '100%';
+        svg.style.maxHeight = '100%';
+        svg.style.display   = 'block';
+    }
+    // Info bar
+    infoName.textContent   = g.name;
+    tagCounter.textContent = `${idx + 1} / ${groups.length}`;
+    if (g.frames.length > 1) {
+        tagFrame.textContent = `${frameIdx + 1} / ${g.frames.length} frames`;
+    } else {
+        tagFrame.textContent = 'Static';
+    }
+}
+
+// ── Animation ─────────────────────────────────────────
+function startAnim() {
+    const g = groups[idx];
+    if (g.frames.length <= 1) return;
+    const ms = 1000 / Math.max(1, parseInt(fpsInput.value) || 12);
+    timer = setInterval(tick, ms);
+}
+
+function stopAnim() {
+    if (timer) { clearInterval(timer); timer = null; }
+}
+
+function tick() {
+    if (paused) return;
+    const g     = groups[idx];
+    const total = g.frames.length;
+    const next  = frameIdx + 1;
+
+    if (next >= total) {
+        if (loopChk.checked) {
+            frameIdx = 0;
+        } else {
+            frameIdx = total - 1;
+            stopAnim();
+            return;
+        }
+    } else {
+        frameIdx = next;
+    }
+    renderFrame();
+}
+
+// ── Navigation ────────────────────────────────────────
+const prev = () => groups.length && showGroup(idx - 1);
+const next = () => groups.length && showGroup(idx + 1);
+
+document.getElementById('prev-btn').addEventListener('click', prev);
+document.getElementById('next-btn').addEventListener('click', next);
+
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); prev(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+    if (e.key === ' ') {
+        e.preventDefault();
+        paused = !paused;
+        pauseBadge.style.display = paused ? 'block' : 'none';
+        // Restart if we stopped at end of no-loop playback
+        if (!paused && !timer && groups[idx]?.frames.length > 1) {
+            frameIdx = 0;
+            startAnim();
+        }
+    }
+});
+
+// FPS change → restart timer
+fpsInput.addEventListener('change', () => {
+    if (timer) { stopAnim(); startAnim(); }
+});
+
+// Loop re-enabled → restart if halted
+loopChk.addEventListener('change', () => {
+    const g = groups[idx];
+    if (loopChk.checked && !timer && g?.frames.length > 1) {
+        frameIdx = 0;
+        startAnim();
+    }
+});
+</script>
+</body>
+</html>
