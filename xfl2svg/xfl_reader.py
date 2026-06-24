@@ -164,11 +164,32 @@ class _UnzippedXflReader(CloseOnExit):
     """Read from an unzipped XFL project."""
 
     def __init__(self, root_path):
+        # If the user points directly at the LIBRARY folder, step up to the parent
+        if os.path.basename(os.path.normpath(root_path)).upper() == "LIBRARY":
+            root_path = os.path.dirname(os.path.normpath(root_path))
         self.root_path = root_path
         self.library_path = os.path.join(root_path, "LIBRARY")
 
     def get_dom_document(self):
-        return ET.parse(os.path.join(self.root_path, "DOMDocument.xml")).getroot()
+        dom_path = os.path.join(self.root_path, "DOMDocument.xml")
+        if os.path.exists(dom_path):
+            return ET.parse(dom_path).getroot()
+        return self._synthesize_dom_document()
+
+    def _synthesize_dom_document(self):
+        """Build a minimal DOMDocument from LIBRARY contents when the real one is absent."""
+        NS = "http://ns.adobe.com/xfl/2008/"
+        root = ET.Element(f"{{{NS}}}DOMDocument", {
+            "width": "550",
+            "height": "400",
+            "backgroundColor": "#ffffff",
+        })
+        symbols_el = ET.SubElement(root, f"{{{NS}}}symbols")
+        if os.path.isdir(self.library_path):
+            for fname in sorted(os.listdir(self.library_path)):
+                if fname.endswith(".xml"):
+                    ET.SubElement(symbols_el, f"{{{NS}}}Include", {"href": fname})
+        return root
 
     def symbol_path_exists(self, symbol_path):
         return os.path.exists(os.path.join(self.library_path, symbol_path))

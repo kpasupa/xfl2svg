@@ -393,9 +393,10 @@ def xfl_edge_to_svg_path(
 
         for point_list in edge_format_to_point_lists(edge_format):
             # Reverse point lists so that the fill is always to the left
-            if fill_id_left is not None:
+            # fill index "0" means no fill; skip IDs not in fill_styles
+            if fill_id_left is not None and fill_id_left in fill_styles:
                 fill_edges.append((point_list, fill_id_left))
-            if fill_id_right is not None:
+            if fill_id_right is not None and fill_id_right in fill_styles:
                 fill_edges.append((list(reversed(point_list)), fill_id_right))
 
             # Convert right away since we don't need to join anything into shapes

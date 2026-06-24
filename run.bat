@@ -1,0 +1,61 @@
+@echo off
+setlocal enabledelayedexpansion
+
+set "XFL2SVG=C:\Users\Admin\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\xfl2svg.exe"
+set "BAT_DIR=%~dp0"
+set "OUTPUT=%BAT_DIR%output"
+set "XFL_DEFAULT=%BAT_DIR%"
+
+echo === XFL to SVG Converter ===
+echo.
+
+:: Use "xfl" subfolder if it exists, otherwise ask
+set "XFL_ROOT=%XFL_DEFAULT%"
+if not exist "%XFL_ROOT%\" (
+    echo Default input folder not found: %XFL_ROOT%
+    echo (Enter the folder that contains LIBRARY, or the LIBRARY folder itself)
+    set /p "XFL_ROOT=Enter XFL folder path: "
+)
+echo Input : %XFL_ROOT%
+echo Output: %OUTPUT%
+echo.
+
+:: Ask to override stage size
+set "WIDTH="
+set "HEIGHT="
+set /p "OVERRIDE=Override stage size? [y/N]: "
+if /i "!OVERRIDE!"=="y" (
+    set /p "WIDTH=Width  [550]: "
+    set /p "HEIGHT=Height [400]: "
+    if "!WIDTH!"==""  set "WIDTH=550"
+    if "!HEIGHT!"=="" set "HEIGHT=400"
+)
+
+set "SIZE_ARGS="
+if not "!WIDTH!"=="" set "SIZE_ARGS=--width !WIDTH! --height !HEIGHT!"
+
+:: List available symbols
+echo.
+echo Available symbols:
+"%XFL2SVG%" "%XFL_ROOT%" "_" "." --print-symbols 2>nul
+echo.
+
+:: Ask which symbol (Enter = all)
+set /p "SYMBOL=Enter symbol name (or press Enter for all): "
+
+:: Create output folder
+if not exist "%OUTPUT%\" mkdir "%OUTPUT%"
+
+if "!SYMBOL!"=="" (
+    echo Rendering all symbols...
+    for /f "skip=1 tokens=*" %%s in ('"%XFL2SVG%" "%XFL_ROOT%" "_" "." --print-symbols 2^>nul') do (
+        echo   %%s
+        "%XFL2SVG%" "%XFL_ROOT%" "%%s" "%OUTPUT%" !SIZE_ARGS!
+    )
+) else (
+    "%XFL2SVG%" "%XFL_ROOT%" "!SYMBOL!" "%OUTPUT%" !SIZE_ARGS!
+)
+
+echo.
+echo Done! Output: %OUTPUT%
+pause
