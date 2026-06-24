@@ -4,7 +4,6 @@ setlocal enabledelayedexpansion
 set "XFL2SVG=C:\Users\Admin\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\xfl2svg.exe"
 set "BAT_DIR=%~dp0"
 set "OUTPUT=%BAT_DIR%output"
-
 :: ============================================================
 :: DEFAULT VALUES — set value to skip prompt, leave "" to ask
 :: ============================================================
@@ -21,7 +20,7 @@ set "DEFAULT_HEIGHT="
 :: Symbol name  — leave "" to ask, enter name to skip prompt
 set "DEFAULT_SYMBOL="
 :: Remove outer frame (width/height/viewBox) from SVG root: y / n
-set "DEFAULT_REMOVE_FRAME=n"
+set "DEFAULT_REMOVE_FRAME=y"
 :: ============================================================
 
 echo === XFL to SVG Converter ===
@@ -39,8 +38,8 @@ echo Output: %OUTPUT%
 echo.
 
 :: Override stage size
-set "WIDTH=%DEFAULT_WIDTH%"
-set "HEIGHT=%DEFAULT_HEIGHT%"
+if "!WIDTH!"=="" set "WIDTH=%DEFAULT_WIDTH%"
+if "!HEIGHT!"=="" set "HEIGHT=%DEFAULT_HEIGHT%"
 if "!WIDTH!"=="" if "!HEIGHT!"=="" (
     set /p "OVERRIDE=Override stage size? [y/N]: "
     if /i "!OVERRIDE!"=="y" (
@@ -52,21 +51,21 @@ if "!WIDTH!"=="" if "!HEIGHT!"=="" (
 )
 
 :: No background
-set "NO_BG_IN=%DEFAULT_NO_BG%"
+if "!NO_BG_IN!"=="" set "NO_BG_IN=%DEFAULT_NO_BG%"
 if "!NO_BG_IN!"=="" set /p "NO_BG_IN=Remove background? [Y/n]: "
 if "!NO_BG_IN!"=="" set "NO_BG_IN=y"
 set "NO_BG_ARG="
 if /i "!NO_BG_IN!"=="y" set "NO_BG_ARG=--no-background"
 
 :: Center content
-set "CENTER_IN=%DEFAULT_CENTER%"
+if "!CENTER_IN!"=="" set "CENTER_IN=%DEFAULT_CENTER%"
 if "!CENTER_IN!"=="" set /p "CENTER_IN=Center content in viewport? [Y/n]: "
 if "!CENTER_IN!"=="" set "CENTER_IN=y"
 set "CENTER_ARG="
 if /i "!CENTER_IN!"=="y" set "CENTER_ARG=--center"
 
 :: Remove outer frame
-set "FRAME_IN=%DEFAULT_REMOVE_FRAME%"
+if "!FRAME_IN!"=="" set "FRAME_IN=%DEFAULT_REMOVE_FRAME%"
 if "!FRAME_IN!"=="" set /p "FRAME_IN=Remove outer frame? [y/N]: "
 if "!FRAME_IN!"=="" set "FRAME_IN=n"
 set "FRAME_ARG="
@@ -84,7 +83,7 @@ echo Available symbols:
 echo.
 
 :: Symbol selection
-set "SYMBOL=%DEFAULT_SYMBOL%"
+if "!SYMBOL!"=="" set "SYMBOL=%DEFAULT_SYMBOL%"
 if "!SYMBOL!"=="" set /p "SYMBOL=Enter symbol name (or press Enter for all): "
 
 :: Create output folder
