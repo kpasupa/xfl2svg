@@ -24,4 +24,4 @@ xfl2svg = "xfl2svg.__main__:main"
 tqdm = ["tqdm"]
 
 [project.urls]
-Source = "https://github.com/PluieElectrique/xfl2svg"
+Source = "https://github.com/kpasupa/xfl2svg"
