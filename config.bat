@@ -12,8 +12,8 @@ set "NO_BG_IN=y"
 :: Center content in viewport: y / n
 set "CENTER_IN=y"
 
-:: Remove outer frame (width/height/viewBox): y / n
-set "FRAME_IN=y"
+:: Remove outer frame: y=always remove, n=always keep, ""=auto (smart)
+set "FRAME_IN="
 
 :: Stage size override — leave "" to use stage default (550x400)
 set "WIDTH="

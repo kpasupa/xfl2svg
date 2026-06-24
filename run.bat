@@ -18,7 +18,7 @@ set "XFL_CONFIG=%BAT_DIR%config.bat"
 set "DEFAULT_XFL=%BAT_DIR%xfl"
 set "DEFAULT_NO_BG=y"
 set "DEFAULT_CENTER=y"
-set "DEFAULT_REMOVE_FRAME=y"
+set "DEFAULT_REMOVE_FRAME="
 set "DEFAULT_WIDTH="
 set "DEFAULT_HEIGHT="
 set "DEFAULT_SYMBOL="
@@ -83,11 +83,10 @@ if "!CENTER_IN!"=="" set "CENTER_IN=y"
 set "CENTER_ARG="
 if /i "!CENTER_IN!"=="y" set "CENTER_ARG=--center"
 
-:: Remove outer frame
-if "!FRAME_IN!"=="" set /p "FRAME_IN=Remove outer frame? [y/N]: "
-if "!FRAME_IN!"=="" set "FRAME_IN=n"
-set "FRAME_ARG="
+:: Remove outer frame: y=always remove, n=always keep, ""=auto (smart per symbol)
+set "FRAME_ARG=--auto-frame"
 if /i "!FRAME_IN!"=="y" set "FRAME_ARG=--no-frame"
+if /i "!FRAME_IN!"=="n" set "FRAME_ARG="
 
 :: Build args
 set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG! !FRAME_ARG!"

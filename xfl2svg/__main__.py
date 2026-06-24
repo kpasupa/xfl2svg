@@ -72,6 +72,10 @@ def parse_args():
     other_args.add_argument(
         "--no-frame", action="store_true", help="Remove width/height/viewBox from SVG root"
     )
+    other_args.add_argument(
+        "--auto-frame", action="store_true",
+        help="Remove frame for single-frame symbols, keep for multi-frame animations"
+    )
 
     debug_args = parser.add_argument_group(title="Debug arguments")
     debug_args.add_argument(
@@ -155,6 +159,11 @@ def main():
     # Internally, frames start at 0
     last_frame = xfl_reader.get_timeline(args.timeline, timeline_type).last_frame + 1
 
+    # auto-frame: remove frame for single-frame symbols, keep for multi-frame
+    no_frame = args.no_frame
+    if args.auto_frame and not args.no_frame:
+        no_frame = (last_frame == 1)
+
     if first_frame < 1:
         die("First frame can't be less than 1")
     if args.last_frame is not None:
@@ -211,7 +220,7 @@ def main():
                 ),
             )
 
-        if args.no_frame:
+        if no_frame:
             root = svg.getroot()
             for attr in ["width", "height", "viewBox", "preserveAspectRatio", "x", "y"]:
                 root.attrib.pop(attr, None)
