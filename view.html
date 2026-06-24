@@ -261,51 +261,86 @@ document.getElementById('open-btn').addEventListener('click', async () => {
 });
 
 // ── Show group ────────────────────────────────────────
-function showGroup(newIdx) {
+let _navVer = 0; // guard against stale async callbacks
+
+async function showGroup(newIdx) {
     stopAnim();
+    const ver = ++_navVer;
     idx      = ((newIdx % groups.length) + groups.length) % groups.length;
     frameIdx = 0;
     paused   = false;
     pauseBadge.style.display = 'none';
     renderFrame();
+
+    // For no-frame SVGs, compute tight viewBox from actual content bounds
+    // and cache it on the group so all animation frames share the same viewport.
+    const grp = groups[idx];
+    if (!grp.cachedViewBox) {
+        const svg = svgWrap.querySelector('svg');
+        if (svg && !svg.hasAttribute('viewBox')) {
+            const vb = await computeViewBox(svg);
+            if (ver !== _navVer) return; // user navigated away
+            grp.cachedViewBox = vb || 'skip';
+            if (vb) {
+                const cur = svgWrap.querySelector('svg');
+                if (cur && !cur.hasAttribute('viewBox')) cur.setAttribute('viewBox', vb);
+            }
+        } else {
+            grp.cachedViewBox = 'framed';
+        }
+    }
+    if (ver !== _navVer) return;
     startAnim();
 }
 
-// Restore viewBox for SVGs exported with --no-frame.
-// --center adds matrix(1,0,0,1,cx,cy) where cx=w/2, cy=h/2,
-// so the original stage was cx*2 × cy*2.
-function fixNoFrame(svg) {
-    if (svg.hasAttribute('viewBox')) return;
-    const g = svg.querySelector(':scope > g[transform]');
-    if (!g) return;
-    const m = g.getAttribute('transform')
-        .match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*([\d.]+),\s*([\d.]+)\)/);
-    if (!m) return;
-    const cx = parseFloat(m[1]);
-    const cy = parseFloat(m[2]);
-    if (cx > 0 && cy > 0) {
-        svg.setAttribute('viewBox', `0 0 ${cx * 2} ${cy * 2}`);
-    }
+// Compute tight viewBox by measuring actual rendered content bounds.
+// getBBox() returns bounds in the element's local space; getCTM() gives
+// its transform relative to the SVG root — combining them gives the
+// bounding box in SVG viewport coordinates.
+function computeViewBox(svg) {
+    return new Promise(resolve => {
+        requestAnimationFrame(() => {
+            const g = svg.querySelector(':scope > g');
+            if (!g) { resolve(null); return; }
+            let bbox, ctm;
+            try { bbox = g.getBBox(); ctm = g.getCTM(); } catch { resolve(null); return; }
+            if (!bbox || !ctm || (bbox.width === 0 && bbox.height === 0)) { resolve(null); return; }
+            const corners = [
+                [bbox.x,              bbox.y             ],
+                [bbox.x + bbox.width, bbox.y             ],
+                [bbox.x,              bbox.y + bbox.height],
+                [bbox.x + bbox.width, bbox.y + bbox.height],
+            ];
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            for (const [cx, cy] of corners) {
+                const tx = ctm.a * cx + ctm.c * cy + ctm.e;
+                const ty = ctm.b * cx + ctm.d * cy + ctm.f;
+                x0 = Math.min(x0, tx); y0 = Math.min(y0, ty);
+                x1 = Math.max(x1, tx); y1 = Math.max(y1, ty);
+            }
+            const pad = 8;
+            resolve(`${x0 - pad} ${y0 - pad} ${x1 - x0 + pad * 2} ${y1 - y0 + pad * 2}`);
+        });
+    });
 }
 
 function renderFrame() {
-    const g = groups[idx];
-    svgWrap.innerHTML = g.frames[frameIdx];
+    const grp = groups[idx];
+    svgWrap.innerHTML = grp.frames[frameIdx];
     const svg = svgWrap.querySelector('svg');
     if (svg) {
-        fixNoFrame(svg);
+        // Apply cached tight viewBox for no-frame SVGs
+        if (!svg.hasAttribute('viewBox') && grp.cachedViewBox && grp.cachedViewBox !== 'skip' && grp.cachedViewBox !== 'framed') {
+            svg.setAttribute('viewBox', grp.cachedViewBox);
+        }
         svg.style.maxWidth  = '100%';
         svg.style.maxHeight = '100%';
         svg.style.display   = 'block';
     }
     // Info bar
-    infoName.textContent   = g.name;
+    infoName.textContent   = grp.name;
     tagCounter.textContent = `${idx + 1} / ${groups.length}`;
-    if (g.frames.length > 1) {
-        tagFrame.textContent = `${frameIdx + 1} / ${g.frames.length} frames`;
-    } else {
-        tagFrame.textContent = 'Static';
-    }
+    tagFrame.textContent   = grp.frames.length > 1 ? `${frameIdx + 1} / ${grp.frames.length} frames` : 'Static';
 }
 
 // ── Animation ─────────────────────────────────────────
