@@ -9,7 +9,7 @@ set "XFL_DEFAULT=%BAT_DIR%"
 echo === XFL to SVG Converter ===
 echo.
 
-:: Use "xfl" subfolder if it exists, otherwise ask
+:: Input folder
 set "XFL_ROOT=%XFL_DEFAULT%"
 if not exist "%XFL_ROOT%\" (
     echo Default input folder not found: %XFL_ROOT%
@@ -20,7 +20,7 @@ echo Input : %XFL_ROOT%
 echo Output: %OUTPUT%
 echo.
 
-:: Ask to override stage size
+:: Override stage size
 set "WIDTH="
 set "HEIGHT="
 set /p "OVERRIDE=Override stage size? [y/N]: "
@@ -31,6 +31,22 @@ if /i "!OVERRIDE!"=="y" (
     if "!HEIGHT!"=="" set "HEIGHT=400"
 )
 
+:: No background
+set "NO_BG_IN="
+set /p "NO_BG_IN=Remove background? [Y/n]: "
+if "!NO_BG_IN!"=="" set "NO_BG_IN=y"
+set "NO_BG_ARG="
+if /i "!NO_BG_IN!"=="y" set "NO_BG_ARG=--no-background"
+
+:: Center content
+set "CENTER_IN="
+set /p "CENTER_IN=Center content in viewport? [Y/n]: "
+if "!CENTER_IN!"=="" set "CENTER_IN=y"
+set "CENTER_ARG="
+if /i "!CENTER_IN!"=="y" set "CENTER_ARG=--center"
+
+:: Build args
+set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG!"
 set "SIZE_ARGS="
 if not "!WIDTH!"=="" set "SIZE_ARGS=--width !WIDTH! --height !HEIGHT!"
 
@@ -50,10 +66,10 @@ if "!SYMBOL!"=="" (
     echo Rendering all symbols...
     for /f "skip=1 tokens=*" %%s in ('"%XFL2SVG%" "%XFL_ROOT%" "_" "." --print-symbols 2^>nul') do (
         echo   %%s
-        "%XFL2SVG%" "%XFL_ROOT%" "%%s" "%OUTPUT%" !SIZE_ARGS!
+        "%XFL2SVG%" "%XFL_ROOT%" "%%s" "%OUTPUT%" !SIZE_ARGS! !EXTRA_ARGS!
     )
 ) else (
-    "%XFL2SVG%" "%XFL_ROOT%" "!SYMBOL!" "%OUTPUT%" !SIZE_ARGS!
+    "%XFL2SVG%" "%XFL_ROOT%" "!SYMBOL!" "%OUTPUT%" !SIZE_ARGS! !EXTRA_ARGS!
 )
 
 echo.
