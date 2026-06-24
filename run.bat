@@ -1,10 +1,20 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: ============================================================
+:: DEFAULT VALUES — set here to skip prompts, leave "" to ask
+:: ============================================================
 set "XFL2SVG=C:\Users\Admin\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\xfl2svg.exe"
 set "BAT_DIR=%~dp0"
 set "OUTPUT=%BAT_DIR%output"
-set "XFL_DEFAULT=%BAT_DIR%"
+set "XFL_DEFAULT=%BAT_DIR%xfl"
+
+set "DEFAULT_NO_BG=y"       :: Remove background?          y/n
+set "DEFAULT_CENTER=y"      :: Center content in viewport? y/n
+set "DEFAULT_WIDTH="        :: Stage width  (leave "" to keep 550)
+set "DEFAULT_HEIGHT="       :: Stage height (leave "" to keep 400)
+set "DEFAULT_SYMBOL="       :: Symbol name  (leave "" to ask / render all)
+:: ============================================================
 
 echo === XFL to SVG Converter ===
 echo.
@@ -21,26 +31,28 @@ echo Output: %OUTPUT%
 echo.
 
 :: Override stage size
-set "WIDTH="
-set "HEIGHT="
-set /p "OVERRIDE=Override stage size? [y/N]: "
-if /i "!OVERRIDE!"=="y" (
-    set /p "WIDTH=Width  [550]: "
-    set /p "HEIGHT=Height [400]: "
-    if "!WIDTH!"==""  set "WIDTH=550"
-    if "!HEIGHT!"=="" set "HEIGHT=400"
+set "WIDTH=%DEFAULT_WIDTH%"
+set "HEIGHT=%DEFAULT_HEIGHT%"
+if "!WIDTH!"=="" if "!HEIGHT!"=="" (
+    set /p "OVERRIDE=Override stage size? [y/N]: "
+    if /i "!OVERRIDE!"=="y" (
+        set /p "WIDTH=Width  [550]: "
+        set /p "HEIGHT=Height [400]: "
+        if "!WIDTH!"==""  set "WIDTH=550"
+        if "!HEIGHT!"=="" set "HEIGHT=400"
+    )
 )
 
 :: No background
-set "NO_BG_IN="
-set /p "NO_BG_IN=Remove background? [Y/n]: "
+set "NO_BG_IN=%DEFAULT_NO_BG%"
+if "!NO_BG_IN!"=="" set /p "NO_BG_IN=Remove background? [Y/n]: "
 if "!NO_BG_IN!"=="" set "NO_BG_IN=y"
 set "NO_BG_ARG="
 if /i "!NO_BG_IN!"=="y" set "NO_BG_ARG=--no-background"
 
 :: Center content
-set "CENTER_IN="
-set /p "CENTER_IN=Center content in viewport? [Y/n]: "
+set "CENTER_IN=%DEFAULT_CENTER%"
+if "!CENTER_IN!"=="" set /p "CENTER_IN=Center content in viewport? [Y/n]: "
 if "!CENTER_IN!"=="" set "CENTER_IN=y"
 set "CENTER_ARG="
 if /i "!CENTER_IN!"=="y" set "CENTER_ARG=--center"
@@ -56,8 +68,9 @@ echo Available symbols:
 "%XFL2SVG%" "%XFL_ROOT%" "_" "." --print-symbols 2>nul
 echo.
 
-:: Ask which symbol (Enter = all)
-set /p "SYMBOL=Enter symbol name (or press Enter for all): "
+:: Symbol selection
+set "SYMBOL=%DEFAULT_SYMBOL%"
+if "!SYMBOL!"=="" set /p "SYMBOL=Enter symbol name (or press Enter for all): "
 
 :: Create output folder
 if not exist "%OUTPUT%\" mkdir "%OUTPUT%"
