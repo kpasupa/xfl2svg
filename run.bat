@@ -20,6 +20,8 @@ set "DEFAULT_WIDTH="
 set "DEFAULT_HEIGHT="
 :: Symbol name  — leave "" to ask, enter name to skip prompt
 set "DEFAULT_SYMBOL="
+:: Remove outer frame (width/height/viewBox) from SVG root: y / n
+set "DEFAULT_REMOVE_FRAME=n"
 :: ============================================================
 
 echo === XFL to SVG Converter ===
@@ -63,8 +65,15 @@ if "!CENTER_IN!"=="" set "CENTER_IN=y"
 set "CENTER_ARG="
 if /i "!CENTER_IN!"=="y" set "CENTER_ARG=--center"
 
+:: Remove outer frame
+set "FRAME_IN=%DEFAULT_REMOVE_FRAME%"
+if "!FRAME_IN!"=="" set /p "FRAME_IN=Remove outer frame? [y/N]: "
+if "!FRAME_IN!"=="" set "FRAME_IN=n"
+set "FRAME_ARG="
+if /i "!FRAME_IN!"=="y" set "FRAME_ARG=--no-frame"
+
 :: Build args
-set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG!"
+set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG! !FRAME_ARG!"
 set "SIZE_ARGS="
 if not "!WIDTH!"=="" set "SIZE_ARGS=--width !WIDTH! --height !HEIGHT!"
 

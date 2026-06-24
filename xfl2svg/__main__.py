@@ -69,6 +69,9 @@ def parse_args():
     other_args.add_argument(
         "--indent", action="store_true", help="Indent SVG (Python 3.9+)"
     )
+    other_args.add_argument(
+        "--no-frame", action="store_true", help="Remove width/height/viewBox from SVG root"
+    )
 
     debug_args = parser.add_argument_group(title="Debug arguments")
     debug_args.add_argument(
@@ -207,6 +210,11 @@ def main():
                     {"fill": background, "width": str(width), "height": str(height)},
                 ),
             )
+
+        if args.no_frame:
+            root = svg.getroot()
+            for attr in ["width", "height", "viewBox", "preserveAspectRatio", "x", "y"]:
+                root.attrib.pop(attr, None)
 
         if args.indent:
             ET.indent(svg)
