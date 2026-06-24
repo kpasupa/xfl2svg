@@ -1,19 +1,25 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: ============================================================
-:: DEFAULT VALUES — set here to skip prompts, leave "" to ask
-:: ============================================================
 set "XFL2SVG=C:\Users\Admin\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\xfl2svg.exe"
 set "BAT_DIR=%~dp0"
 set "OUTPUT=%BAT_DIR%output"
-set "XFL_DEFAULT=%BAT_DIR%xfl"
 
-set "DEFAULT_NO_BG=y"       :: Remove background?          y/n
-set "DEFAULT_CENTER=y"      :: Center content in viewport? y/n
-set "DEFAULT_WIDTH="        :: Stage width  (leave "" to keep 550)
-set "DEFAULT_HEIGHT="       :: Stage height (leave "" to keep 400)
-set "DEFAULT_SYMBOL="       :: Symbol name  (leave "" to ask / render all)
+:: ============================================================
+:: DEFAULT VALUES — set value to skip prompt, leave "" to ask
+:: ============================================================
+:: Input folder (folder that contains LIBRARY)
+set "XFL_DEFAULT=%BAT_DIR%"
+:: Remove background: y / n
+set "DEFAULT_NO_BG=y"
+:: Center content in viewport: y / n
+set "DEFAULT_CENTER=y"
+:: Stage width  — leave "" to keep 550
+set "DEFAULT_WIDTH="
+:: Stage height — leave "" to keep 400
+set "DEFAULT_HEIGHT="
+:: Symbol name  — leave "" to ask, enter name to skip prompt
+set "DEFAULT_SYMBOL="
 :: ============================================================
 
 echo === XFL to SVG Converter ===
