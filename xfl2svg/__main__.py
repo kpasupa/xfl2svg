@@ -76,6 +76,10 @@ def parse_args():
         "--auto-frame", action="store_true",
         help="Remove frame for single-frame symbols, keep for multi-frame animations"
     )
+    other_args.add_argument(
+        "--ignore-text", action="store_true",
+        help="Silently skip text elements (DOMStaticText, DOMDynamicText)"
+    )
 
     debug_args = parser.add_argument_group(title="Debug arguments")
     debug_args.add_argument(
@@ -123,7 +127,7 @@ def main():
 
     # Create XFL reader and SVG renderer
     xfl_reader = XflReader(args.xfl)
-    svg_renderer = SvgRenderer(xfl_reader)
+    svg_renderer = SvgRenderer(xfl_reader, ignore_text=args.ignore_text)
 
     scene_names = xfl_reader.get_scene_names()
     symbol_names = xfl_reader.get_symbol_names()

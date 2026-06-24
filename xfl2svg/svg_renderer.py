@@ -26,8 +26,9 @@ class SvgRenderer:
     # Cache the most recently used frame of a layer for faster frame lookups
     LAST_USED_FRAME = ET.QName("xfl2svg", "lastUsedFrame")
 
-    def __init__(self, xfl_reader, TIMELINE_CACHE=8192):
+    def __init__(self, xfl_reader, TIMELINE_CACHE=8192, ignore_text=False):
         self.xfl_reader = xfl_reader
+        self.ignore_text = ignore_text
         # TODO: Don't use lru_cache on a method, as it creates a reference
         # cycle. This means SvgRenderer can only be cleaned up by GC.
         self._render_timeline = lru_cache(maxsize=TIMELINE_CACHE)(self._render_timeline)
@@ -248,9 +249,9 @@ class SvgRenderer:
             body: List of SVG elements
         """
         if element.tag.endswith("DOMSymbolInstance"):
-            if element.get("symbolType") != "graphic":
-                # TODO: Some symbols have no symbol type and `blendMode="layer"` instead?
-                warnings.warn(f"Unknown symbol type: {element.get('symbolType')}")
+            symbolType = element.get("symbolType")
+            if symbolType is not None and symbolType != "graphic":
+                warnings.warn(f"Unknown symbol type: {symbolType}")
 
             # If present, the <color> element will be the last child
             if not inside_mask and element[-1].tag.endswith("color"):
@@ -283,6 +284,10 @@ class SvgRenderer:
                 )
                 defs.update(d)
                 body.extend(b)
+        elif element.tag.endswith(("DOMStaticText", "DOMDynamicText")):
+            if self.ignore_text:
+                return {}, []
+            defs, body = self._handle_domtext(element, inside_mask)
         else:
             tag = element.tag.split("}")[1]
             warnings.warn(f"Unknown element type: {tag}")
@@ -340,6 +345,43 @@ class SvgRenderer:
             body.append(ET.Element("use", {HREF: "#" + stroke_id}))
 
         return defs, body
+
+    def _handle_domtext(self, element, inside_mask):
+        """Convert DOMStaticText/DOMDynamicText to a basic SVG <text> element."""
+        text_el = ET.Element("text", {"dominant-baseline": "text-before-edge"})
+
+        for run in element.iter():
+            if not run.tag.endswith("DOMTextRun"):
+                continue
+            chars_el = next((c for c in run if c.tag.endswith("characters")), None)
+            if chars_el is None or not chars_el.text:
+                continue
+            attrs_el = next((c for c in run.iter() if c.tag.endswith("DOMTextAttrs")), None)
+
+            tspan = ET.SubElement(text_el, "tspan")
+            tspan.text = chars_el.text
+
+            if inside_mask:
+                tspan.set("fill", "#ffffff")
+            elif attrs_el is not None:
+                color = attrs_el.get("fillColor", attrs_el.get("color", "#000000"))
+                tspan.set("fill", color)
+
+            if attrs_el is not None:
+                size = attrs_el.get("size")
+                face = attrs_el.get("face")
+                if size:
+                    tspan.set("font-size", size)
+                if face:
+                    tspan.set("font-family", face)
+                if attrs_el.get("bold") == "true":
+                    tspan.set("font-weight", "bold")
+                if attrs_el.get("italic") == "true":
+                    tspan.set("font-style", "italic")
+
+        if not len(text_el):
+            return {}, []
+        return {}, [text_el]
 
     def _get_loop_frame(self, instance, frame_offset):
         """Calculate the frame to use for a symbol instance given the offset.

@@ -4,7 +4,7 @@
 :: ============================================================
 
 :: Input folder (folder containing LIBRARY or Symbol XMLs)
-set "XFL_ROOT=C:\Users\Admin\xfl2svg\xfl"
+set "XFL_ROOT=C:\Users\Admin\xfl2svg\fla"
 
 :: Remove background rect: y / n
 set "NO_BG_IN=y"
@@ -21,3 +21,6 @@ set "HEIGHT="
 
 :: Symbol to render — leave "" to render all
 set "SYMBOL="
+
+:: Text elements (DOMStaticText/DOMDynamicText): y=silently skip / n=render basic SVG text
+set "DOM_TEXT_IGNORE=y"

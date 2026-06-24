@@ -22,6 +22,7 @@ set "DEFAULT_REMOVE_FRAME="
 set "DEFAULT_WIDTH="
 set "DEFAULT_HEIGHT="
 set "DEFAULT_SYMBOL="
+set "DEFAULT_DOM_TEXT_IGNORE=y"
 :: ============================================================
 
 echo === XFL to SVG Converter ===
@@ -48,6 +49,7 @@ if "!FRAME_IN!"==""        set "FRAME_IN=%DEFAULT_REMOVE_FRAME%"
 if "!WIDTH!"==""           set "WIDTH=%DEFAULT_WIDTH%"
 if "!HEIGHT!"==""          set "HEIGHT=%DEFAULT_HEIGHT%"
 if "!SYMBOL!"==""          set "SYMBOL=%DEFAULT_SYMBOL%"
+if "!DOM_TEXT_IGNORE!"=="" set "DOM_TEXT_IGNORE=%DEFAULT_DOM_TEXT_IGNORE%"
 
 :: Input folder — ask if still empty or not found
 if "!XFL_ROOT!"=="" (
@@ -88,8 +90,12 @@ set "FRAME_ARG=--auto-frame"
 if /i "!FRAME_IN!"=="y" set "FRAME_ARG=--no-frame"
 if /i "!FRAME_IN!"=="n" set "FRAME_ARG="
 
+:: Text elements: y=silently ignore, n=render basic SVG text
+set "TEXT_ARG="
+if /i "!DOM_TEXT_IGNORE!"=="y" set "TEXT_ARG=--ignore-text"
+
 :: Build args
-set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG! !FRAME_ARG!"
+set "EXTRA_ARGS=!NO_BG_ARG! !CENTER_ARG! !FRAME_ARG! !TEXT_ARG!"
 set "SIZE_ARGS="
 if not "!WIDTH!"=="" set "SIZE_ARGS=--width !WIDTH! --height !HEIGHT!"
 
@@ -110,9 +116,9 @@ if "!SYMBOL!"=="" (
     set "SYMLIST=%TEMP%\xfl2svg_symbols.txt"
     "%XFL2SVG%" "!XFL_ROOT!" "_" "." --print-symbols 2>nul | more +1 > "!SYMLIST!"
     set /a COUNT=0
-    for /f "tokens=*" %%s in ("!SYMLIST!") do set /a COUNT+=1
+    for /f "usebackq tokens=*" %%s in ("!SYMLIST!") do set /a COUNT+=1
     echo Rendering all symbols...
-    for /f "tokens=*" %%s in ("!SYMLIST!") do (
+    for /f "usebackq tokens=*" %%s in ("!SYMLIST!") do (
         echo   %%s
         "%XFL2SVG%" "!XFL_ROOT!" "%%s" "%OUTPUT%" !SIZE_ARGS! !EXTRA_ARGS!
     )

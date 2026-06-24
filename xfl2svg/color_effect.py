@@ -86,7 +86,8 @@ class ColorEffect:
             )
 
         else:
-            warnings.warn(f"Unknown color effect: {attrib}")
+            if attrib:
+                warnings.warn(f"Unknown color effect: {attrib}")
             return cls()
 
         return cls(multiplier, offset)
