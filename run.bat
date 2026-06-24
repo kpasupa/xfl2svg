@@ -106,11 +106,17 @@ if "!SYMBOL!"=="" set /p "SYMBOL=Enter symbol name (or press Enter for all): "
 if not exist "%OUTPUT%\" mkdir "%OUTPUT%"
 
 if "!SYMBOL!"=="" (
+    :: Write symbol list to temp file — avoids for/f buffer overflow with large sets
+    set "SYMLIST=%TEMP%\xfl2svg_symbols.txt"
+    "%XFL2SVG%" "!XFL_ROOT!" "_" "." --print-symbols 2>nul | more +1 > "!SYMLIST!"
+    set /a COUNT=0
+    for /f "tokens=*" %%s in ("!SYMLIST!") do set /a COUNT+=1
     echo Rendering all symbols...
-    for /f "skip=1 tokens=*" %%s in ('"%XFL2SVG%" "!XFL_ROOT!" "_" "." --print-symbols 2^>nul') do (
+    for /f "tokens=*" %%s in ("!SYMLIST!") do (
         echo   %%s
         "%XFL2SVG%" "!XFL_ROOT!" "%%s" "%OUTPUT%" !SIZE_ARGS! !EXTRA_ARGS!
     )
+    del "!SYMLIST!" 2>nul
 ) else (
     "%XFL2SVG%" "!XFL_ROOT!" "!SYMBOL!" "%OUTPUT%" !SIZE_ARGS! !EXTRA_ARGS!
 )

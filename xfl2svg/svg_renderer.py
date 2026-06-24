@@ -190,7 +190,11 @@ class SvgRenderer:
         # Caching the last used frame makes searching more complicated, but
         # we'll perform a lot of .get() lookups if we don't, which is slow.
         i = frames.get(self.LAST_USED_FRAME, 0)
+        if i >= len(frames):
+            i = 0
         while True:
+            if i < 0 or i >= len(frames):
+                return {}, []
             frame = frames[i]
             index = int(frame.get("index"))
             if frame_idx < index:

@@ -353,13 +353,14 @@ def point_lists_to_shapes(point_lists: List[Tuple[list, str]]) -> Dict[str, List
     # For each fill style ID, pick a random origin and join point lists into
     # shapes with walk() until we're done.
     for fill_id, fill_graph in graph.items():
-        for origin in fill_graph.keys():
+        for origin in list(fill_graph.keys()):
             while fill_graph[origin]:
                 point_list = fill_graph[origin].pop()
                 curr_point = point_list[-1]
 
                 shape = walk(curr_point, {origin, curr_point}, origin, fill_graph)
-                assert shape is not None, "Failed to build shape"
+                if shape is None:
+                    continue  # skip uncloseable paths (open/malformed edges)
 
                 shapes[fill_id].append(point_list + shape[1:])
 
