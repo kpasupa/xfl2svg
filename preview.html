@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>XFL Preview</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111; color: #eee;
+  font-family: system-ui, sans-serif;
+  height: 100vh; display: flex; flex-direction: column;
+  overflow: hidden; user-select: none;
+}
+
+/* ── Welcome ── */
+#welcome {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100vh; gap: 14px;
+}
+#welcome h1 { font-size: 22px; color: #777; font-weight: 400; }
+#welcome p  { font-size: 13px; color: #444; }
+#open-btn {
+  padding: 11px 36px; background: #3a7bd5; color: #fff;
+  border: none; border-radius: 8px; font-size: 15px; cursor: pointer;
+}
+#open-btn:hover { background: #2e6ac4; }
+
+/* ── App ── */
+#app { display: none; flex: 1; overflow: hidden; flex-direction: row; }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 220px; flex-shrink: 0;
+  background: #161616; border-right: 1px solid #2a2a2a;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#sidebar-top {
+  padding: 8px 10px; border-bottom: 1px solid #222; flex-shrink: 0;
+}
+#sym-search {
+  width: 100%; background: #222; border: 1px solid #333;
+  border-radius: 4px; color: #eee; padding: 5px 8px; font-size: 12px;
+  outline: none;
+}
+#sym-search::placeholder { color: #444; }
+#sidebar-header {
+  padding: 6px 12px 4px; font-size: 11px; color: #444;
+  flex-shrink: 0;
+}
+#symbol-list { overflow-y: auto; flex: 1; }
+.sym-item {
+  padding: 6px 12px; font-size: 12px; color: #999; cursor: pointer;
+  border-bottom: 1px solid #1c1c1c;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sym-item:hover { background: #1e1e1e; color: #ddd; }
+.sym-item.active { background: #1a3558; color: #7ab3f0; }
+
+/* ── Main ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Stage ── */
+#stage {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: #1c1c1c;
+  background-image:
+    linear-gradient(45deg, #242424 25%, transparent 25%),
+    linear-gradient(-45deg,#242424 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #242424 75%),
+    linear-gradient(-45deg,transparent 75%, #242424 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  position: relative;
+}
+#loading {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  color: #444; font-size: 13px; display: none;
+}
+#svg-wrap {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; padding: 16px;
+}
+#svg-wrap svg { max-width: 100%; max-height: 100%; display: block; }
+
+/* ── Bar ── */
+#bar {
+  background: #161616; border-top: 1px solid #2a2a2a;
+  padding: 0 16px; display: flex; align-items: center;
+  gap: 14px; height: 48px; flex-shrink: 0;
+}
+#info-name {
+  font-size: 13px; font-weight: 600; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ccc;
+}
+.tag {
+  font-size: 11px; color: #555; white-space: nowrap;
+  background: #1e1e1e; border: 1px solid #2e2e2e;
+  border-radius: 4px; padding: 2px 7px;
+}
+.sep { width: 1px; height: 20px; background: #2a2a2a; flex-shrink: 0; }
+.ctl {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #666; white-space: nowrap;
+}
+.ctl input[type=number] {
+  width: 46px; background: #1e1e1e; border: 1px solid #333;
+  border-radius: 4px; color: #ddd; padding: 2px 5px;
+  font-size: 12px; text-align: center;
+}
+.ctl input[type=checkbox] { cursor: pointer; accent-color: #3a7bd5; }
+#err { font-size: 11px; color: #b44; display: none; max-width: 300px;
+       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+
+<div id="welcome">
+  <h1>XFL Preview</h1>
+  <p>Open the <code>fla/</code> folder (contains DOMDocument.xml + LIBRARY/)</p>
+  <button id="open-btn">Open XFL Folder</button>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div id="sidebar-top">
+      <input id="sym-search" type="text" placeholder="Filter symbols…">
+    </div>
+    <div id="sidebar-header">SYMBOLS <span id="sym-count"></span></div>
+    <div id="symbol-list"></div>
+  </div>
+  <div id="main">
+    <div id="stage">
+      <div id="svg-wrap"></div>
+      <div id="loading">Rendering…</div>
+    </div>
+    <div id="bar">
+      <span id="info-name">—</span>
+      <span class="tag" id="tag-type">—</span>
+      <span class="tag" id="tag-frame">—</span>
+      <div class="sep"></div>
+      <div class="ctl">FPS <input type="number" id="fps-in" value="12" min="1" max="60"></div>
+      <div class="ctl">
+        <input type="checkbox" id="loop-chk" checked>
+        <label for="loop-chk">Loop</label>
+      </div>
+      <div class="sep"></div>
+      <span id="err"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Find direct children with a given local name (namespace-agnostic)
+function childrenNamed(parent, localName) {
+  const out = [];
+  for (const c of parent.children)
+    if (c.localName === localName) out.push(c);
+  return out;
+}
+
+function childNamed(parent, localName) {
+  for (const c of parent.children)
+    if (c.localName === localName) return c;
+  return null;
+}
+
+// Descend through tag chain, e.g. descend(el, 'matrix', 'Matrix')
+function descend(el, ...names) {
+  let cur = el;
+  for (const n of names) { cur = childNamed(cur, n); if (!cur) return null; }
+  return cur;
+}
+
+// All descendants by local name (namespace-agnostic)
+function allNamed(root, localName) {
+  return [...root.querySelectorAll('*')].filter(e => e.localName === localName);
+}
+
+function unescapeEntities(s) {
+  return s ? s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)) : s;
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs))
+    if (v != null) el.setAttribute(k, v);
+  return el;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// XFLLoader — file access + asset registry
+// ─────────────────────────────────────────────────────────────────────────────
+class XFLLoader {
+  constructor() {
+    this.bitmaps     = new Map(); // name → {href, frameW, frameH, dataURL}
+    this.symbolPaths = new Map(); // name → filename ("Symbol 416.xml")
+    this.symbolDocs  = new Map(); // name → parsed Document (cache)
+    this.libHandle   = null;
+  }
+
+  async open(dirHandle) {
+    // Locate DOMDocument.xml (allow user to open parent or fla/ directly)
+    let rootHandle = dirHandle;
+    let domText = null;
+
+    try {
+      domText = await (await (await dirHandle.getFileHandle('DOMDocument.xml')).getFile()).text();
+    } catch {
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind !== 'directory') continue;
+        try {
+          domText = await (await (await entry.getFileHandle('DOMDocument.xml')).getFile()).text();
+          rootHandle = entry;
+          break;
+        } catch { /* keep looking */ }
+      }
+    }
+    if (!domText) throw new Error('DOMDocument.xml not found. Please open the fla/ folder.');
+
+    try {
+      this.libHandle = await rootHandle.getDirectoryHandle('LIBRARY');
+    } catch {
+      throw new Error('LIBRARY/ folder not found.');
+    }
+
+    const dom = new DOMParser().parseFromString(domText, 'text/xml');
+
+    // Symbol paths from <Include href="Symbol N.xml">
+    for (const inc of allNamed(dom, 'Include')) {
+      const href = inc.getAttribute('href');
+      if (!href || !href.endsWith('.xml')) continue;
+      this.symbolPaths.set(unescapeEntities(href.replace(/\.xml$/, '')), href);
+    }
+
+    // Bitmap registry from <DOMBitmapItem>
+    for (const bmp of allNamed(dom, 'DOMBitmapItem')) {
+      const name   = bmp.getAttribute('name');
+      const href   = bmp.getAttribute('href');
+      const frameW = (+bmp.getAttribute('frameRight')  || 0) / 20;
+      const frameH = (+bmp.getAttribute('frameBottom') || 0) / 20;
+      if (name && href) this.bitmaps.set(name, { href, frameW, frameH, dataURL: null });
+    }
+
+    await this._loadBitmaps();
+  }
+
+  async _loadBitmaps() {
+    await Promise.allSettled([...this.bitmaps.values()].map(async info => {
+      try {
+        const file = await (await this.libHandle.getFileHandle(info.href)).getFile();
+        const buf  = await file.arrayBuffer();
+        const b64  = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const mime = /\.png$/i.test(info.href) ? 'image/png' : 'image/jpeg';
+        info.dataURL = `data:${mime};base64,${b64}`;
+      } catch { /* missing bitmap */ }
+    }));
+  }
+
+  getSymbolNames() {
+    return [...this.symbolPaths.keys()].sort((a, b) => {
+      const na = parseInt(a.replace(/\D+/g, '')) || 0;
+      const nb = parseInt(b.replace(/\D+/g, '')) || 0;
+      return na !== nb ? na - nb : a.localeCompare(b);
+    });
+  }
+
+  async getSymbolDoc(name) {
+    if (this.symbolDocs.has(name)) return this.symbolDocs.get(name);
+    const path = this.symbolPaths.get(name);
+    if (!path) return null;
+    try {
+      const txt = await (await (await this.libHandle.getFileHandle(path)).getFile()).text();
+      const doc = new DOMParser().parseFromString(txt, 'text/xml');
+      this.symbolDocs.set(name, doc);
+      return doc;
+    } catch { return null; }
+  }
+
+  getBitmap(name) { return this.bitmaps.get(name) || null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edge Parser  (port of xfl2svg/shape/edge.py)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Tokenizes: commands (!|/[]), decimal numbers, #HEX.HEX numbers
+const TOK_RE = /[!|/\[\]]|(?<![A-Z])-?\d+(?:\.\d+)?|#[0-9A-F]+\.[0-9A-F]+/gi;
+
+function parseNum(s) {
+  if (s[0] === '#') {
+    // Signed 32-bit fixed-point: "#HHHHHHH.HH" → int32 / 256 / 20
+    const [hi, lo] = s.slice(1).split('.');
+    const hex = hi.padStart(6, '0') + lo.padEnd(2, '0');
+    const bytes = hex.match(/.{2}/g).map(h => parseInt(h, 16));
+    const view  = new DataView(new Uint8Array(bytes).buffer);
+    return (view.getInt32(0) / 256) / 20;
+  }
+  return parseFloat(s) / 20;
+}
+
+// Returns array of point-lists. Each point-list is an array where:
+//   string  → destination (M or L)
+//   [string] → control point of quadratic Bézier (dest follows)
+function edgeToPointLists(edgesStr) {
+  const toks = [...edgesStr.matchAll(TOK_RE)].map(m => m[0]);
+  const result = [];
+  let i = 0;
+
+  const nextPt = () => {
+    const x = parseNum(toks[i++]);
+    const y = parseNum(toks[i++]);
+    return `${x} ${y}`;
+  };
+
+  if (!toks.length || toks[i++] !== '!') return result;
+  let prev = nextPt();
+  let pl   = [prev];
+
+  while (i < toks.length) {
+    const cmd = toks[i++];
+    if (cmd === '!') {
+      const pt = nextPt();
+      if (pt !== prev) { result.push(pl); pl = [pt]; prev = pt; }
+    } else if (cmd === '|' || cmd === '/') {
+      prev = nextPt(); pl.push(prev);
+    } else if (cmd === '[' || cmd === ']') {
+      const ctrl = nextPt();
+      prev = nextPt();
+      pl.push([ctrl]); // control point wrapped in array
+      pl.push(prev);
+    }
+  }
+  result.push(pl);
+  return result;
+}
+
+function pointListToPath(pl) {
+  let d = 'M ' + pl[0];
+  let j = 1;
+  let last = 'M';
+  while (j < pl.length) {
+    const pt = pl[j++];
+    if (Array.isArray(pt)) {
+      const dest = pl[j++];
+      if (last !== 'Q') { d += ' Q'; last = 'Q'; } else d += ' ';
+      d += pt[0] + ' ' + dest;
+    } else {
+      if (last !== 'L') { d += ' L'; last = 'L'; } else d += ' ';
+      d += pt;
+    }
+  }
+  if (pl[0] === pl[pl.length - 1]) d += ' Z';
+  return d;
+}
+
+// Join open segments into closed shapes per fill-id.
+// Input: [[pointList, fillId], ...]
+// Output: Map(fillId → [closedPointList, ...])
+function joinShapes(segments) {
+  // graph[fillId][startPt] = [pointList, ...]
+  const graph  = new Map();
+  const shapes = new Map();
+
+  const graphFor = fillId => {
+    if (!graph.has(fillId)) graph.set(fillId, new Map());
+    return graph.get(fillId);
+  };
+  const addEdge = (fillId, pl) => {
+    const g = graphFor(fillId);
+    if (!g.has(pl[0])) g.set(pl[0], []);
+    g.get(pl[0]).push(pl);
+  };
+  const addShape = (fillId, pl) => {
+    if (!shapes.has(fillId)) shapes.set(fillId, []);
+    shapes.get(fillId).push(pl);
+  };
+
+  for (const [pl, fillId] of segments) {
+    if (pl[0] === pl[pl.length - 1]) addShape(fillId, pl);
+    else                              addEdge(fillId, pl);
+  }
+
+  function walk(curr, used, origin, g) {
+    const cands = g.get(curr) || [];
+    for (let i = 0; i < cands.length; i++) {
+      const next   = cands[i];
+      const nextPt = next[next.length - 1];
+      if (nextPt === origin) {
+        cands.splice(i, 1);
+        return next;
+      }
+      if (!used.has(nextPt)) {
+        used.add(nextPt);
+        const tail = walk(nextPt, used, origin, g);
+        if (tail) { cands.splice(i, 1); return [...next, ...tail.slice(1)]; }
+        used.delete(nextPt);
+      }
+    }
+    return null;
+  }
+
+  for (const [fillId, g] of graph) {
+    for (const [origin, pls] of g) {
+      while (pls.length) {
+        const pl   = pls.pop();
+        const curr = pl[pl.length - 1];
+        const used = new Set([origin, curr]);
+        const tail = walk(curr, used, origin, g);
+        if (tail) addShape(fillId, [...pl, ...tail.slice(1)]);
+      }
+    }
+  }
+
+  return shapes;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Matrix helper
+// ─────────────────────────────────────────────────────────────────────────────
+function getMatrix(el) {
+  // el → <matrix> → <Matrix a b c d tx ty>
+  const matrixEl = descend(el, 'matrix', 'Matrix');
+  if (!matrixEl) return null;
+  const a  = matrixEl.getAttribute('a')  ?? '1';
+  const b  = matrixEl.getAttribute('b')  ?? '0';
+  const c  = matrixEl.getAttribute('c')  ?? '0';
+  const d  = matrixEl.getAttribute('d')  ?? '1';
+  const tx = matrixEl.getAttribute('tx') ?? '0';
+  const ty = matrixEl.getAttribute('ty') ?? '0';
+  if (a==='1'&&b==='0'&&c==='0'&&d==='1'&&tx==='0'&&ty==='0') return null;
+  return [a, b, c, d, tx, ty];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fill / Stroke style parsers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Returns { attrib: {fill, stroke, ...}, defEls: [[id, element], ...] }
+function parseFillStyle(styleEl, loader, uid) {
+  const tag = styleEl.localName;
+
+  if (tag === 'SolidColor') {
+    const color = styleEl.getAttribute('color') || '#000000';
+    const alpha = styleEl.getAttribute('alpha');
+    const attrib = { fill: color, stroke: 'none' };
+    if (alpha != null) attrib['fill-opacity'] = alpha;
+    return { attrib, defEls: [] };
+  }
+
+  if (tag === 'BitmapFill') {
+    const bmpPath = styleEl.getAttribute('bitmapPath') || '';
+    const info    = loader.getBitmap(bmpPath);
+    if (!info || !info.dataURL) {
+      // Magenta placeholder so missing bitmaps are visible
+      return { attrib: { fill: '#ff00ff', stroke: 'none' }, defEls: [] };
+    }
+
+    const matEl = descend(styleEl, 'matrix', 'Matrix');
+    let ma=1, mb=0, mc=0, md=1, tx=0, ty=0;
+    if (matEl) {
+      ma = +(matEl.getAttribute('a')  ?? 1);
+      mb = +(matEl.getAttribute('b')  ?? 0);
+      mc = +(matEl.getAttribute('c')  ?? 0);
+      md = +(matEl.getAttribute('d')  ?? 1);
+      tx = +(matEl.getAttribute('tx') ?? 0);
+      ty = +(matEl.getAttribute('ty') ?? 0);
+    }
+
+    const W = info.frameW;  // natural display width  (twips/20)
+    const H = info.frameH;  // natural display height (twips/20)
+    const id = `bmp_${uid}`;
+
+    // a/d are in twips — divide by 20 for display scale.
+    // tx/ty are already in display pixels.
+    const pat = svgEl('pattern', {
+      id, patternUnits: 'userSpaceOnUse',
+      x: 0, y: 0, width: W, height: H,
+      patternTransform: `matrix(${ma/20},${mb/20},${mc/20},${md/20},${tx},${ty})`
+    });
+    const img = svgEl('image', {
+      href: info.dataURL,
+      x: 0, y: 0, width: W, height: H,
+      preserveAspectRatio: 'none'
+    });
+    pat.appendChild(img);
+
+    return { attrib: { fill: `url(#${id})`, stroke: 'none' }, defEls: [[id, pat]] };
+  }
+
+  if (tag === 'LinearGradient' || tag === 'RadialGradient') {
+    return parseGradient(styleEl, uid, tag === 'RadialGradient');
+  }
+
+  return { attrib: { fill: 'none', stroke: 'none' }, defEls: [] };
+}
+
+function parseGradient(styleEl, uid, radial) {
+  const id     = (radial ? 'rg_' : 'lg_') + uid;
+  const matEl  = descend(styleEl, 'matrix', 'Matrix');
+  let ma=1, mb=0, mc=0, md=1, tx=0, ty=0;
+  if (matEl) {
+    ma = +(matEl.getAttribute('a')  ?? 1);
+    mb = +(matEl.getAttribute('b')  ?? 0);
+    mc = +(matEl.getAttribute('c')  ?? 0);
+    md = +(matEl.getAttribute('d')  ?? 1);
+    tx = +(matEl.getAttribute('tx') ?? 0);
+    ty = +(matEl.getAttribute('ty') ?? 0);
+  }
+
+  // Flash gradient box: half-width = 1638.4 twips = 81.92 px
+  const hw = 1638.4 / 20;
+  const gradTransform = `matrix(${ma/20},${mb/20},${mc/20},${md/20},${tx},${ty})`;
+
+  const gradEl = radial
+    ? svgEl('radialGradient', { id, gradientUnits: 'userSpaceOnUse',
+        cx: 0, cy: 0, r: hw, gradientTransform: gradTransform })
+    : svgEl('linearGradient', { id, gradientUnits: 'userSpaceOnUse',
+        x1: -hw, y1: 0, x2: hw, y2: 0, gradientTransform: gradTransform });
+
+  for (const entry of allNamed(styleEl, 'GradientEntry')) {
+    const stop = svgEl('stop', {
+      offset:       entry.getAttribute('ratio') || '0',
+      'stop-color': entry.getAttribute('color') || '#000000',
+    });
+    const alpha = entry.getAttribute('alpha');
+    if (alpha != null) stop.setAttribute('stop-opacity', alpha);
+    gradEl.appendChild(stop);
+  }
+
+  return { attrib: { fill: `url(#${id})`, stroke: 'none' }, defEls: [[id, gradEl]] };
+}
+
+function parseStrokeStyle(styleEl) {
+  if (styleEl.localName !== 'SolidStroke')
+    return { fill: 'none', stroke: '#000', 'stroke-width': '1' };
+
+  const solidColor = styleEl.querySelector ? styleEl.querySelector('SolidColor')
+    : allNamed(styleEl, 'SolidColor')[0];
+  const color   = solidColor?.getAttribute('color')  || '#000000';
+  const opacity = solidColor?.getAttribute('alpha');
+  const weight  = styleEl.getAttribute('weight')  || '1';
+  const joints  = styleEl.getAttribute('joints')  || 'round';
+  const rawCaps = styleEl.getAttribute('caps')    || 'round';
+  const caps    = rawCaps === 'none' ? 'butt' : rawCaps;
+  const solid   = styleEl.getAttribute('solidStyle');
+
+  const s = {
+    fill: 'none', stroke: color,
+    'stroke-width': solid === 'hairline' ? '0.05' : weight,
+    'stroke-linecap': caps, 'stroke-linejoin': joints,
+  };
+  if (opacity != null) s['stroke-opacity'] = opacity;
+  if (joints === 'miter')
+    s['stroke-miterlimit'] = styleEl.getAttribute('miterLimit') || '5';
+  return s;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Timeline length helper
+// ─────────────────────────────────────────────────────────────────────────────
+function timelineLength(doc) {
+  let max = 1;
+  for (const f of allNamed(doc, 'DOMFrame')) {
+    const end = +(f.getAttribute('index') || 0) + +(f.getAttribute('duration') || 1);
+    if (end > max) max = end;
+  }
+  return max;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SVGRenderer
+// ─────────────────────────────────────────────────────────────────────────────
+class SVGRenderer {
+  constructor(loader) {
+    this.loader = loader;
+    this._uid   = 0;
+    // Recursion guard: prevent infinite loops from circular symbol refs
+    this._stack = new Set();
+  }
+
+  _id() { return ++this._uid; }
+
+  // Entry point. Returns an <svg> DOM element.
+  async renderSymbol(name, frameIdx) {
+    const defs = new Map();
+    const body = [];
+    this._stack.clear();
+    await this._renderTimeline(name, frameIdx, null, false, defs, body);
+
+    const svg = svgEl('svg', { xmlns: SVG_NS, version: '1.1' });
+    const defsEl = svgEl('defs');
+    for (const el of defs.values()) defsEl.appendChild(el);
+    svg.appendChild(defsEl);
+    for (const el of body) svg.appendChild(el);
+    return svg;
+  }
+
+  async _renderTimeline(name, frameIdx, alpha, insideMask, defs, body) {
+    if (this._stack.has(name)) return; // circular reference guard
+    const doc = await this.loader.getSymbolDoc(name);
+    if (!doc) return;
+
+    this._stack.add(name);
+    try {
+      // DOMSymbolItem → timeline → DOMTimeline → layers → DOMLayer*
+      const layersEl = descend(doc.documentElement, 'timeline', 'DOMTimeline', 'layers');
+      if (!layersEl) return;
+      const layers = childrenNamed(layersEl, 'DOMLayer');
+
+      // Render back-to-front (last layer = bottom)
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        const layerType = layer.getAttribute('layerType');
+        if (layerType === 'guide') continue;
+        // Mask layers are skipped (full mask support would need extra work)
+        if (layerType === 'mask') continue;
+        await this._renderLayer(layer, frameIdx, alpha, insideMask, defs, body);
+      }
+    } finally {
+      this._stack.delete(name);
+    }
+  }
+
+  async _renderLayer(layer, frameIdx, alpha, insideMask, defs, body) {
+    const framesEl = childNamed(layer, 'frames');
+    if (!framesEl) return;
+
+    // Find the DOMFrame that covers frameIdx
+    let frame = null, frameOffset = 0;
+    for (const f of childrenNamed(framesEl, 'DOMFrame')) {
+      const idx = +(f.getAttribute('index') || 0);
+      const dur = +(f.getAttribute('duration') || 1);
+      if (frameIdx >= idx && frameIdx < idx + dur) {
+        frame = f; frameOffset = frameIdx - idx; break;
+      }
+    }
+    if (!frame) return;
+
+    // <elements> is the last child named 'elements'
+    let elementsEl = null;
+    for (let i = frame.children.length - 1; i >= 0; i--) {
+      if (frame.children[i].localName === 'elements') {
+        elementsEl = frame.children[i]; break;
+      }
+    }
+    if (!elementsEl) return;
+
+    for (const el of elementsEl.children)
+      await this._renderElement(el, frameOffset, alpha, insideMask, defs, body);
+  }
+
+  async _renderElement(el, frameOffset, alpha, insideMask, defs, body) {
+    const tag = el.localName;
+    const childDefs = new Map();
+    const childBody = [];
+
+    if (tag === 'DOMSymbolInstance') {
+      const libName   = unescapeEntities(el.getAttribute('libraryItemName') || '');
+      const loopFrame = this._loopFrame(el, frameOffset);
+
+      // Accumulate alpha from <Color alphaMultiplier="…">
+      let newAlpha = alpha;
+      if (!insideMask) {
+        const colorEl = childNamed(el, 'color');
+        if (colorEl) {
+          const cEl = childNamed(colorEl, 'Color');
+          if (cEl) {
+            const am = cEl.getAttribute('alphaMultiplier');
+            if (am != null) newAlpha = (alpha ?? 1) * +am;
+          }
+        }
+      }
+
+      await this._renderTimeline(libName, loopFrame, newAlpha, insideMask, childDefs, childBody);
+
+    } else if (tag === 'DOMShape') {
+      this._renderShape(el, insideMask, childDefs, childBody);
+
+    } else if (tag === 'DOMGroup') {
+      const membersEl = childNamed(el, 'members');
+      if (membersEl)
+        for (const child of membersEl.children)
+          await this._renderElement(child, frameOffset, alpha, insideMask, childDefs, childBody);
+
+    } else if (tag === 'DOMStaticText' || tag === 'DOMDynamicText') {
+      this._renderText(el, insideMask, childBody);
+    }
+
+    if (!childBody.length) return;
+
+    // Wrap in transform group if there's a matrix (skip for DOMGroup)
+    let elBody = childBody;
+    if (tag !== 'DOMGroup') {
+      const mat = getMatrix(el);
+      if (mat) {
+        const g = svgEl('g', { transform: `matrix(${mat.join(',')})` });
+        for (const c of elBody) g.appendChild(c);
+        elBody = [g];
+      }
+    }
+
+    // Apply alpha as opacity
+    if (alpha != null && alpha < 0.999 && tag === 'DOMSymbolInstance') {
+      const g = svgEl('g', { opacity: alpha });
+      for (const c of elBody) g.appendChild(c);
+      elBody = [g];
+    }
+
+    for (const [k, v] of childDefs) defs.set(k, v);
+    for (const c of elBody) body.push(c);
+  }
+
+  _renderShape(domShape, insideMask, defs, body) {
+    const fillStyles   = {};
+    const strokeStyles = {};
+
+    for (const fs of childrenNamed(childNamed(domShape, 'fills') || domShape, 'FillStyle')) {
+      const idx   = fs.getAttribute('index');
+      const child = fs.children[0];
+      if (!child) continue;
+      if (insideMask) {
+        fillStyles[idx] = { fill: '#FFFFFF', stroke: 'none' };
+      } else {
+        const { attrib, defEls } = parseFillStyle(child, this.loader, this._id());
+        fillStyles[idx] = attrib;
+        for (const [k, v] of defEls) defs.set(k, v);
+      }
+    }
+
+    // Also scan FillStyle elements wherever they appear in the shape
+    for (const fs of allNamed(domShape, 'FillStyle')) {
+      const idx = fs.getAttribute('index');
+      if (idx in fillStyles) continue;
+      const child = fs.children[0];
+      if (!child) continue;
+      if (insideMask) {
+        fillStyles[idx] = { fill: '#FFFFFF', stroke: 'none' };
+      } else {
+        const { attrib, defEls } = parseFillStyle(child, this.loader, this._id());
+        fillStyles[idx] = attrib;
+        for (const [k, v] of defEls) defs.set(k, v);
+      }
+    }
+
+    for (const ss of allNamed(domShape, 'StrokeStyle')) {
+      const idx   = ss.getAttribute('index');
+      const child = ss.children[0];
+      if (child) strokeStyles[idx] = parseStrokeStyle(child);
+    }
+
+    const edgesEl = allNamed(domShape, 'edges')[0];
+    if (!edgesEl) return;
+
+    const fillEdges  = [];
+    const strokeSegs = new Map(); // strokeId → [pathStr]
+
+    for (const edge of childrenNamed(edgesEl, 'Edge')) {
+      const edgesAttr = edge.getAttribute('edges');
+      if (!edgesAttr) continue;
+      const fill0  = edge.getAttribute('fillStyle0');
+      const fill1  = edge.getAttribute('fillStyle1');
+      const stroke = edge.getAttribute('strokeStyle');
+
+      const pls = edgeToPointLists(edgesAttr);
+      for (const pl of pls) {
+        if (fill0 && fill0 in fillStyles) fillEdges.push([pl, fill0]);
+        if (fill1 && fill1 in fillStyles) fillEdges.push([[...pl].reverse(), fill1]);
+        if (stroke && stroke in strokeStyles) {
+          if (!strokeSegs.has(stroke)) strokeSegs.set(stroke, []);
+          strokeSegs.get(stroke).push(pointListToPath(pl));
+        }
+      }
+    }
+
+    // Filled paths
+    const shapes = joinShapes(fillEdges);
+    for (const [fillId, pls] of shapes) {
+      const attrs = fillStyles[fillId] || {};
+      const path  = svgEl('path', { d: pls.map(pointListToPath).join(' '), ...attrs });
+      body.push(path);
+    }
+
+    // Stroked paths
+    for (const [strokeId, pathStrs] of strokeSegs) {
+      const attrs = strokeStyles[strokeId] || {};
+      const path  = svgEl('path', { d: pathStrs.join(' '), ...attrs });
+      body.push(path);
+    }
+  }
+
+  _renderText(el, insideMask, body) {
+    const textEl = svgEl('text', { 'dominant-baseline': 'text-before-edge' });
+    for (const run of allNamed(el, 'DOMTextRun')) {
+      const charsEl = allNamed(run, 'characters')[0];
+      if (!charsEl?.textContent) continue;
+      const attrsEl = allNamed(run, 'DOMTextAttrs')[0];
+      const tspan   = svgEl('tspan');
+      tspan.textContent = charsEl.textContent;
+      if (insideMask) {
+        tspan.setAttribute('fill', '#ffffff');
+      } else if (attrsEl) {
+        const color = attrsEl.getAttribute('fillColor') || attrsEl.getAttribute('color') || '#000';
+        tspan.setAttribute('fill', color);
+        const size = attrsEl.getAttribute('size');
+        const face = attrsEl.getAttribute('face');
+        if (size) tspan.setAttribute('font-size', size);
+        if (face) tspan.setAttribute('font-family', face);
+        if (attrsEl.getAttribute('bold')   === 'true') tspan.setAttribute('font-weight', 'bold');
+        if (attrsEl.getAttribute('italic') === 'true') tspan.setAttribute('font-style', 'italic');
+      }
+      textEl.appendChild(tspan);
+    }
+    if (textEl.children.length) body.push(textEl);
+  }
+
+  _loopFrame(instance, frameOffset) {
+    const first    = +(instance.getAttribute('firstFrame') || 0);
+    const loopType = instance.getAttribute('loop') || 'single frame';
+    if (loopType === 'single frame') return first;
+    if (loopType === 'play once') {
+      // Can't know last frame without loading the symbol; just advance
+      return first + frameOffset;
+    }
+    // loop — we'd need the symbol's total frames; approximate
+    return first + frameOffset;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App state
+// ─────────────────────────────────────────────────────────────────────────────
+let loader      = null;
+let renderer    = null;
+let curSymbol   = null;
+let curFrame    = 0;
+let totalFrames = 1;
+let animTimer   = null;
+let cachedVB    = null; // cached viewBox string for current symbol
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI elements
+// ─────────────────────────────────────────────────────────────────────────────
+const welcome  = document.getElementById('welcome');
+const app      = document.getElementById('app');
+const svgWrap  = document.getElementById('svg-wrap');
+const symList  = document.getElementById('symbol-list');
+const symCount = document.getElementById('sym-count');
+const infoName = document.getElementById('info-name');
+const tagType  = document.getElementById('tag-type');
+const tagFrame = document.getElementById('tag-frame');
+const loadingEl= document.getElementById('loading');
+const fpsIn    = document.getElementById('fps-in');
+const loopChk  = document.getElementById('loop-chk');
+const errEl    = document.getElementById('err');
+const searchIn = document.getElementById('sym-search');
+
+function showErr(msg) { errEl.textContent = msg; errEl.style.display = msg ? '' : 'none'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Open folder
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('open-btn').addEventListener('click', async () => {
+  let dir;
+  try { dir = await window.showDirectoryPicker(); } catch { return; }
+
+  loader = new XFLLoader();
+  try { await loader.open(dir); }
+  catch (e) { alert(e.message); return; }
+
+  renderer = new SVGRenderer(loader);
+
+  const names = loader.getSymbolNames();
+  symCount.textContent = `(${names.length})`;
+  buildList(names);
+
+  welcome.style.display = 'none';
+  app.style.display     = 'flex';
+
+  if (names.length) selectSymbol(names[0]);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Symbol list
+// ─────────────────────────────────────────────────────────────────────────────
+function buildList(names) {
+  symList.innerHTML = '';
+  for (const name of names) {
+    const div = document.createElement('div');
+    div.className   = 'sym-item';
+    div.textContent = name;
+    div.dataset.name = name;
+    div.addEventListener('click', () => selectSymbol(name));
+    symList.appendChild(div);
+  }
+}
+
+searchIn.addEventListener('input', () => {
+  const q = searchIn.value.toLowerCase();
+  for (const item of symList.children)
+    item.style.display = item.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Select + render a symbol
+// ─────────────────────────────────────────────────────────────────────────────
+async function selectSymbol(name) {
+  stopAnim();
+  showErr('');
+  cachedVB = null;
+  curSymbol = name;
+  curFrame  = 0;
+
+  // Highlight sidebar item
+  for (const el of symList.querySelectorAll('.active')) el.classList.remove('active');
+  const item = [...symList.children].find(el => el.dataset.name === name);
+  if (item) { item.classList.add('active'); item.scrollIntoView({ block: 'nearest' }); }
+
+  // Get frame count
+  const doc    = await loader.getSymbolDoc(name);
+  totalFrames  = doc ? timelineLength(doc) : 1;
+
+  infoName.textContent = name;
+  tagType.textContent  = totalFrames > 1 ? 'Animated' : 'Static';
+  updateFrameTag();
+
+  await renderFrame();
+  startAnim();
+}
+
+async function renderFrame() {
+  if (!curSymbol) return;
+  loadingEl.style.display = 'block';
+  try {
+    const svgElement = await renderer.renderSymbol(curSymbol, curFrame);
+    svgWrap.innerHTML = '';
+    svgWrap.appendChild(svgElement);
+    applyViewBox(svgElement);
+    updateFrameTag();
+  } catch (e) {
+    showErr(e.message);
+    console.error(e);
+  } finally {
+    loadingEl.style.display = 'none';
+  }
+}
+
+function updateFrameTag() {
+  tagFrame.textContent = totalFrames > 1
+    ? `${curFrame + 1} / ${totalFrames}`
+    : 'Static';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ViewBox — compute from rendered content, cache per symbol
+// ─────────────────────────────────────────────────────────────────────────────
+function applyViewBox(svgEl) {
+  if (cachedVB) { svgEl.setAttribute('viewBox', cachedVB); return; }
+  requestAnimationFrame(() => {
+    const PAD = 12;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    try {
+      // Walk all path/image/text elements and accumulate their bounding boxes
+      for (const child of svgEl.querySelectorAll('path, image, text, use')) {
+        let bb;
+        try { bb = child.getBBox(); } catch { continue; }
+        if (!bb || (bb.width === 0 && bb.height === 0)) continue;
+        const ctm = child.getCTM();
+        if (!ctm) continue;
+        for (const [cx, cy] of [
+          [bb.x, bb.y], [bb.x+bb.width, bb.y],
+          [bb.x, bb.y+bb.height], [bb.x+bb.width, bb.y+bb.height]
+        ]) {
+          const tx = ctm.a*cx + ctm.c*cy + ctm.e;
+          const ty = ctm.b*cx + ctm.d*cy + ctm.f;
+          if (tx < x0) x0 = tx; if (ty < y0) y0 = ty;
+          if (tx > x1) x1 = tx; if (ty > y1) y1 = ty;
+        }
+      }
+    } catch {}
+
+    if (!isFinite(x0) || x1 <= x0) return; // no content — leave viewBox unset
+
+    const vb = `${x0-PAD} ${y0-PAD} ${x1-x0+PAD*2} ${y1-y0+PAD*2}`;
+    cachedVB = vb;
+    // Apply to current SVG (might still be the same one)
+    const cur = svgWrap.querySelector('svg');
+    if (cur) cur.setAttribute('viewBox', vb);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Animation
+// ─────────────────────────────────────────────────────────────────────────────
+function startAnim() {
+  if (totalFrames <= 1) return;
+  const ms = 1000 / Math.max(1, parseInt(fpsIn.value) || 12);
+  animTimer = setInterval(async () => {
+    const next = curFrame + 1;
+    if (next >= totalFrames) {
+      if (!loopChk.checked) { stopAnim(); return; }
+      curFrame = 0;
+    } else {
+      curFrame = next;
+    }
+    await renderFrame();
+  }, ms);
+}
+
+function stopAnim() { if (animTimer) { clearInterval(animTimer); animTimer = null; } }
+
+fpsIn.addEventListener('change', () => { if (animTimer) { stopAnim(); startAnim(); } });
+loopChk.addEventListener('change', () => {
+  if (loopChk.checked && !animTimer && totalFrames > 1) { curFrame = 0; startAnim(); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keyboard nav
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const names = loader?.getSymbolNames() || [];
+  const idx   = names.indexOf(curSymbol);
+  if (e.key === 'ArrowLeft'  && idx > 0)            { e.preventDefault(); selectSymbol(names[idx-1]); }
+  if (e.key === 'ArrowRight' && idx < names.length-1){ e.preventDefault(); selectSymbol(names[idx+1]); }
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (animTimer) stopAnim(); else if (totalFrames > 1) startAnim();
+  }
+});
+</script>
+</body>
+</html>
