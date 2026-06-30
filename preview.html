@@ -1087,7 +1087,10 @@ exportBtn.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${curSymbol}.svg`;
+  const pad = totalFrames > 1
+    ? '_' + String(curFrame + 1).padStart(String(totalFrames).length, '0')
+    : '';
+  a.download = `${curSymbol}${pad}.svg`;
   a.click();
   URL.revokeObjectURL(url);
 });
