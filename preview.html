@@ -112,6 +112,28 @@ body {
 .ctl input[type=checkbox] { cursor: pointer; accent-color: #3a7bd5; }
 #err { font-size: 11px; color: #b44; display: none; max-width: 300px;
        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Timeline ── */
+#timeline {
+  display: none; align-items: center; gap: 10px;
+  background: #161616; border-top: 1px solid #2a2a2a;
+  padding: 0 12px; height: 38px; flex-shrink: 0;
+}
+#timeline.visible { display: flex; }
+#play-btn {
+  background: none; border: 1px solid #333; border-radius: 4px;
+  color: #aaa; cursor: pointer; font-size: 13px;
+  padding: 2px 9px; line-height: 1; flex-shrink: 0;
+}
+#play-btn:hover { background: #222; color: #eee; }
+#scrubber { flex: 1; accent-color: #3a7bd5; cursor: pointer; }
+#frame-num { font-size: 11px; color: #555; white-space: nowrap; flex-shrink: 0; min-width: 56px; text-align: right; }
+#export-btn {
+  background: none; border: 1px solid #333; border-radius: 4px;
+  color: #777; cursor: pointer; font-size: 11px; padding: 3px 9px;
+  white-space: nowrap; flex-shrink: 0;
+}
+#export-btn:hover { background: #222; color: #ddd; }
 </style>
 </head>
 <body>
@@ -135,6 +157,11 @@ body {
       <div id="svg-wrap"></div>
       <div id="loading">Rendering…</div>
     </div>
+    <div id="timeline">
+      <button id="play-btn">▶</button>
+      <input type="range" id="scrubber" min="0" max="0" value="0" step="1">
+      <span id="frame-num">1 / 1</span>
+    </div>
     <div id="bar">
       <span id="info-name">—</span>
       <span class="tag" id="tag-type">—</span>
@@ -146,6 +173,7 @@ body {
         <label for="loop-chk">Loop</label>
       </div>
       <div class="sep"></div>
+      <button id="export-btn">Export SVG</button>
       <span id="err"></span>
     </div>
   </div>
@@ -861,9 +889,19 @@ const loadingEl= document.getElementById('loading');
 const fpsIn    = document.getElementById('fps-in');
 const loopChk  = document.getElementById('loop-chk');
 const errEl    = document.getElementById('err');
-const searchIn = document.getElementById('sym-search');
+const searchIn   = document.getElementById('sym-search');
+const timelineEl = document.getElementById('timeline');
+const playBtn    = document.getElementById('play-btn');
+const scrubber   = document.getElementById('scrubber');
+const frameNum   = document.getElementById('frame-num');
+const exportBtn  = document.getElementById('export-btn');
 
 function showErr(msg) { errEl.textContent = msg; errEl.style.display = msg ? '' : 'none'; }
+function updatePlayBtn() { playBtn.textContent = animTimer ? '⏸' : '▶'; }
+function updateScrubber() {
+  scrubber.value = curFrame;
+  frameNum.textContent = `${curFrame + 1} / ${totalFrames}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Open folder
@@ -928,6 +966,10 @@ async function selectSymbol(name) {
   const doc    = await loader.getSymbolDoc(name);
   totalFrames  = doc ? timelineLength(doc) : 1;
 
+  scrubber.max = Math.max(0, totalFrames - 1);
+  if (totalFrames > 1) timelineEl.classList.add('visible');
+  else timelineEl.classList.remove('visible');
+
   infoName.textContent = name;
   tagType.textContent  = totalFrames > 1 ? 'Animated' : 'Static';
   updateFrameTag();
@@ -945,6 +987,7 @@ async function renderFrame() {
     svgWrap.appendChild(svgElement);
     applyViewBox(svgElement);
     updateFrameTag();
+    updateScrubber();
   } catch (e) {
     showErr(e.message);
     console.error(e);
@@ -1013,13 +1056,39 @@ function startAnim() {
     }
     await renderFrame();
   }, ms);
+  updatePlayBtn();
 }
 
-function stopAnim() { if (animTimer) { clearInterval(animTimer); animTimer = null; } }
+function stopAnim() { if (animTimer) { clearInterval(animTimer); animTimer = null; } updatePlayBtn(); }
 
 fpsIn.addEventListener('change', () => { if (animTimer) { stopAnim(); startAnim(); } });
 loopChk.addEventListener('change', () => {
   if (loopChk.checked && !animTimer && totalFrames > 1) { curFrame = 0; startAnim(); }
+});
+
+playBtn.addEventListener('click', () => {
+  if (animTimer) stopAnim(); else if (totalFrames > 1) startAnim();
+});
+
+scrubber.addEventListener('input', async () => {
+  stopAnim();
+  curFrame = +scrubber.value;
+  await renderFrame();
+});
+
+exportBtn.addEventListener('click', () => {
+  const svg = svgWrap.querySelector('svg');
+  if (!svg || !curSymbol) return;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns', SVG_NS);
+  const str = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([str], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${curSymbol}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
