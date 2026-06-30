@@ -1045,6 +1045,7 @@ function applyViewBox(svgEl) {
 // ─────────────────────────────────────────────────────────────────────────────
 function startAnim() {
   if (totalFrames <= 1) return;
+  if (animTimer !== null) return;
   const ms = 1000 / Math.max(1, parseInt(fpsIn.value) || 12);
   animTimer = setInterval(async () => {
     const next = curFrame + 1;
@@ -1059,15 +1060,15 @@ function startAnim() {
   updatePlayBtn();
 }
 
-function stopAnim() { if (animTimer) { clearInterval(animTimer); animTimer = null; } updatePlayBtn(); }
+function stopAnim() { if (animTimer !== null) { clearInterval(animTimer); animTimer = null; } updatePlayBtn(); }
 
-fpsIn.addEventListener('change', () => { if (animTimer) { stopAnim(); startAnim(); } });
+fpsIn.addEventListener('change', () => { if (animTimer !== null) { stopAnim(); startAnim(); } });
 loopChk.addEventListener('change', () => {
-  if (loopChk.checked && !animTimer && totalFrames > 1) { curFrame = 0; startAnim(); }
+  if (loopChk.checked && animTimer === null && totalFrames > 1) { curFrame = 0; startAnim(); }
 });
 
 playBtn.addEventListener('click', () => {
-  if (animTimer) stopAnim(); else if (totalFrames > 1) startAnim();
+  if (animTimer !== null) stopAnim(); else if (totalFrames > 1) startAnim();
 });
 
 scrubber.addEventListener('input', async () => {
@@ -1102,7 +1103,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' && idx < names.length-1){ e.preventDefault(); selectSymbol(names[idx+1]); }
   if (e.key === ' ') {
     e.preventDefault();
-    if (animTimer) stopAnim(); else if (totalFrames > 1) startAnim();
+    if (animTimer !== null) stopAnim(); else if (totalFrames > 1) startAnim();
   }
 });
 </script>
